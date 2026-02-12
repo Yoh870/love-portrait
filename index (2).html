@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Create beautiful love letter portraits from your photos">
+    <meta name="theme-color" content="#ff2d55">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Love Portrait">
+    <title>Cinematic Love Letter Studio</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- iOS Icons -->
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <style>
+        :root {
+            --accent: #ff2d55;
+            --bg: #0a0a0b;
+            --card: #16161a;
+            --border: #2d2d33;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background-color: var(--bg);
+            color: #e1e1e6;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .studio-container {
+            width: 100%;
+            max-width: 1100px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.7);
+        }
+
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 { 
+            font-size: 1.8rem; 
+            letter-spacing: 5px; 
+            background: linear-gradient(to right, #fff, var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+            .studio-container {
+                padding: 20px;
+            }
+        }
+
+        .controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .control-box {
+            background: rgba(255,255,255,0.03);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        label { display: block; font-size: 10px; text-transform: uppercase; color: #888; margin-bottom: 10px; }
+
+        input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+        
+        select, input[type="file"] {
+            width: 100%;
+            background: #000;
+            color: white;
+            border: 1px solid var(--border);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .preview-area {
+            background: #000;
+            border-radius: 16px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #000;
+            box-shadow: 0 0 30px rgba(255,45,85,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+        }
+
+        #mainCanvas {
+            max-width: 100%;
+            max-height: 600px;
+            object-fit: contain;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 10px;
+        }
+
+        .btn-gen { background: var(--accent); color: white; }
+        .btn-gen:hover { background: #ff4d70; transform: translateY(-2px); }
+        .btn-save { background: #fff; color: #000; }
+        .btn-install { background: #4CAF50; color: white; display: none; }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .install-banner {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(255,45,85,0.5);
+            display: none;
+            align-items: center;
+            gap: 15px;
+            z-index: 1000;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateX(-50%) translateY(100px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+
+        .install-banner button {
+            background: white;
+            color: var(--accent);
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-banner {
+            background: transparent !important;
+            color: white !important;
+            padding: 5px 10px !important;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="studio-container">
+    <div class="header">
+        <h1>CINEMATIC LOVE PORTRAIT</h1>
+    </div>
+
+    <div class="grid-layout">
+        <div class="controls-panel">
+            <div class="control-box">
+                <label>1. Select Image</label>
+                <input type="file" id="upload" accept="image/*">
+            </div>
+
+            <div class="control-box">
+                <label>2. Resolution (Density)</label>
+                <input type="range" id="density" min="60" max="220" value="130">
+            </div>
+
+            <div class="control-box">
+                <label>3. Face Contrast</label>
+                <input type="range" id="contrast" min="0" max="100" value="40">
+            </div>
+
+            <div class="control-box">
+                <label>4. Artistic Mode</label>
+                <select id="mode">
+                    <option value="bw">Cinematic B&W</option>
+                    <option value="color">Preserve Original Colors</option>
+                </select>
+            </div>
+
+            <button class="btn-action btn-gen" onclick="generatePortrait()">Generate Art</button>
+            <button class="btn-action btn-save" onclick="downloadHD()">Export PNG</button>
+            <button class="btn-action btn-install" id="installBtn" onclick="installApp()">📱 Install App</button>
+        </div>
+
+        <div class="preview-area">
+            <div class="loading-overlay" id="loader">
+                <div style="color: var(--accent); margin-bottom: 10px;">Processing...</div>
+            </div>
+            <canvas id="mainCanvas"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Install Banner -->
+<div class="install-banner" id="installBanner">
+    <span>📱 Install this app on your device!</span>
+    <button onclick="installApp()">Install</button>
+    <button class="close-banner" onclick="closeBanner()">✕</button>
+</div>
+
+<script>
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const upload = document.getElementById('upload');
+    const loader = document.getElementById('loader');
+    
+    let sourceImg = null;
+    const LOVE_TEXT = "Ikaw ang pinakamagandang biyaya sa buhay ko. Sa bawat ngiti mo ay natatagpuan ko ang kapayapaan at saya na hindi ko kailanman naramdaman noon. Ikaw ang ilaw sa mga madidilim kong araw, ang lakas ko sa tuwing ako ay nanghihina, at ang inspirasyon ko sa bawat pangarap na aking tinutupad. Mahal na mahal kita, higit pa sa kaya kong ipaliwanag. Ang puso ko ay sa'yo lamang, ngayon at magpakailanman. Ikaw ang tahanan ko, ang pahinga ko, at ang pinakamahalagang bahagi ng aking mundo.";
+
+    // PWA Installation
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+    const installBanner = document.getElementById('installBanner');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBtn.style.display = 'block';
+        
+        // Show banner after 3 seconds
+        setTimeout(() => {
+            installBanner.style.display = 'flex';
+        }, 3000);
+    });
+
+    function installApp() {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('App installed');
+                    installBanner.style.display = 'none';
+                    installBtn.style.display = 'none';
+                }
+                deferredPrompt = null;
+            });
+        }
+    }
+
+    function closeBanner() {
+        installBanner.style.display = 'none';
+    }
+
+    window.addEventListener('appinstalled', () => {
+        console.log('PWA installed successfully');
+        installBtn.style.display = 'none';
+        installBanner.style.display = 'none';
+    });
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js')
+            .then(reg => console.log('Service Worker registered'))
+            .catch(err => console.log('Service Worker registration failed'));
+    }
+
+    upload.onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (f) => {
+            const img = new Image();
+            img.onload = () => {
+                sourceImg = img;
+                generatePortrait();
+            };
+            img.src = f.target.result;
+        };
+        reader.readAsDataURL(e.target.files[0]);
+    };
+
+    function generatePortrait() {
+        if (!sourceImg) return;
+        loader.style.display = 'flex';
+
+        setTimeout(() => {
+            const density = parseInt(document.getElementById('density').value);
+            const contrast = parseInt(document.getElementById('contrast').value);
+            const mode = document.getElementById('mode').value;
+
+            // Match canvas to source image aspect ratio
+            canvas.width = sourceImg.width;
+            canvas.height = sourceImg.height;
+
+            // Background
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Calculate sample grid based on density
+            const sampleWidth = density;
+            const sampleHeight = Math.floor(density * (sourceImg.height / sourceImg.width));
+            
+            const tempCanvas = document.createElement('canvas');
+            const tCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = sampleWidth;
+            tempCanvas.height = sampleHeight;
+
+            // Apply contrast and weighted grayscale pre-processing
+            tCtx.filter = `contrast(${100 + contrast}%) grayscale(100%) brightness(1.1)`;
+            
+            // Draw image to fit completely (contain mode - no cropping)
+            tCtx.drawImage(sourceImg, 0, 0, sampleWidth, sampleHeight);
+
+            const imgData = tCtx.getImageData(0, 0, sampleWidth, sampleHeight).data;
+            
+            // Text settings
+            const cellW = canvas.width / sampleWidth;
+            const cellH = canvas.height / sampleHeight;
+            ctx.font = `bold ${cellW * 1.3}px monospace`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            let charIdx = 0;
+
+            for (let j = 0; j < sampleHeight; j++) {
+                for (let i = 0; i < sampleWidth; i++) {
+                    const p = (j * sampleWidth + i) * 4;
+                    const r = imgData[p];
+                    const g = imgData[p+1];
+                    const b = imgData[p+2];
+
+                    // Weighted Grayscale: 0.299*R + 0.587*G + 0.114*B
+                    const brightness = (0.299 * r + 0.587 * g + 0.114 * b);
+
+                    if (brightness > 40) {
+                        const char = LOVE_TEXT[charIdx % LOVE_TEXT.length];
+                        
+                        if (mode === 'color') {
+                            ctx.fillStyle = getSourceColor(i/sampleWidth, j/sampleHeight);
+                        } else {
+                            // Cinematic fade based on brightness
+                            ctx.fillStyle = `rgba(255,255,255,${brightness/255})`;
+                        }
+
+                        ctx.fillText(char, i * cellW + cellW/2, j * cellH + cellH/2);
+                        charIdx++;
+                    }
+                }
+            }
+            loader.style.display = 'none';
+        }, 50);
+    }
+
+    function getSourceColor(px, py) {
+        const c = document.createElement('canvas');
+        const x = c.getContext('2d');
+        c.width = 1; c.height = 1;
+        x.drawImage(sourceImg, px * sourceImg.width, py * sourceImg.height, 1, 1, 0, 0, 1, 1);
+        const d = x.getImageData(0,0,1,1).data;
+        return `rgb(${d[0]}, ${d[1]}, ${d[2]})`;
+    }
+
+    function downloadHD() {
+        const link = document.createElement('a');
+        link.download = 'Love_Portrait_Full.png';
+        link.href = canvas.toDataURL('image/png', 1.0);
+        link.click();
+    }
+</script>
+
+</body>
+</html>
